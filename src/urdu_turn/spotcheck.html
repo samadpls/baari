@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Urdu Label Check</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;600&family=Noto+Nastaliq+Urdu&display=swap">
+<style>
+  :root { --bg: #faf8f4; --card: #fff; --ink: #1d1b18; --muted: #6b665e; --line: #e4dfd6; --ok: #2f6b3b; --bad: #a3322a; --unsure: #8a6d1f; }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --bg: #171614; --card: #201f1c; --ink: #eeeae3; --muted: #a59f95; --line: #34322d; --ok: #7fc28b; --bad: #e88a82; --unsure: #d8b660; } }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.5 "Schibsted Grotesk", system-ui, sans-serif; }
+  main { max-width: 760px; margin: 0 auto; padding: 24px 16px 80px; }
+  h1 { font-size: 26px; margin: 0 0 8px; }
+  .how { color: var(--muted); margin: 0 0 20px; }
+  .bar { position: sticky; top: 0; background: var(--bg); padding: 10px 0; border-bottom: 1px solid var(--line); display: flex; gap: 12px; align-items: center; flex-wrap: wrap; z-index: 1; }
+  .clip { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 16px; margin-top: 14px; }
+  .head { display: flex; justify-content: space-between; color: var(--muted); font-size: 14px; }
+  .label { font-weight: 600; color: var(--ink); }
+  .ur { font-family: "Noto Nastaliq Urdu", serif; direction: rtl; text-align: right; font-size: 18px; line-height: 2.2; margin: 10px 0; }
+  audio { width: 100%; }
+  .btns { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+  button { font: inherit; padding: 8px 14px; border-radius: 8px; border: 1px solid var(--line); background: var(--card); color: var(--ink); cursor: pointer; }
+  button.on[data-v="right"] { border-color: var(--ok); color: var(--ok); font-weight: 600; }
+  button.on[data-v="wrong"] { border-color: var(--bad); color: var(--bad); font-weight: 600; }
+  button.on[data-v="unsure"] { border-color: var(--unsure); color: var(--unsure); font-weight: 600; }
+  button:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Check the Urdu labels</h1>
+  <p class="how">Play each clip and listen to its <strong>very end</strong>. Does the speaker sound finished there, so the other person could reply now? Then say whether the label is right. Your answers stay in this browser; press Download when done and send me the file.</p>
+  <div class="bar"><span id="count"></span><button id="dl">Download results</button></div>
+  <div id="list"></div>
+</main>
+<script>
+const CLIPS = __CLIPS__;
+const KEY = "urdu-label-check";
+let answers = {};
+try { answers = JSON.parse(localStorage.getItem(KEY) || "{}"); } catch (e) {}
+const save = () => { try { localStorage.setItem(KEY, JSON.stringify(answers)); } catch (e) {} };
+const count = () => { document.getElementById("count").textContent = `${Object.keys(answers).length} of ${CLIPS.length} checked`; };
+const list = document.getElementById("list");
+CLIPS.forEach((c, i) => {
+  const el = document.createElement("section");
+  el.className = "clip";
+  el.innerHTML = `<div class="head"><span>Clip ${i + 1}</span><span>Label: <span class="label">${c.finished ? "finished" : "not finished"}</span></span></div>
+    <audio controls preload="none" src="${c.file}"></audio>
+    <div class="ur"></div>
+    <div class="btns">${[["right", "Label is right"], ["wrong", "Label is wrong"], ["unsure", "Can't tell"]].map(([v, t]) => `<button data-v="${v}">${t}</button>`).join("")}</div>`;
+  el.querySelector(".ur").textContent = c.text;
+  el.querySelectorAll("button").forEach(b => {
+    if (answers[c.id] === b.dataset.v) b.classList.add("on");
+    b.onclick = () => { answers[c.id] = b.dataset.v; el.querySelectorAll("button").forEach(x => x.classList.toggle("on", x === b)); save(); count(); };
+  });
+  list.appendChild(el);
+});
+count();
+document.getElementById("dl").onclick = () => {
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([JSON.stringify(answers, null, 1)], { type: "application/json" }));
+  a.download = "label-check.json";
+  a.click();
+};
+</script>
+</body>
+</html>

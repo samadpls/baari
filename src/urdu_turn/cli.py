@@ -1,0 +1,138 @@
+import json
+import random
+from collections import defaultdict
+
+import pyarrow as pa
+import pyarrow.parquet as pq
+import typer
+
+from urdu_turn import clips, indicvoices, labels
+from urdu_turn.settings import Settings
+
+app = typer.Typer(no_args_is_help=True)
+
+
+def load_index(s: Settings, split: str) -> list[dict]:
+    return pq.read_table(s.index_dir / f"{split}.parquet").to_pylist()
+
+
+@app.command()
+def scan(split: str = "valid") -> None:
+    """Index the conversation segments of one IndicVoices Urdu split (text only, no audio)."""
+    s = Settings()
+    rows = [
+        r
+        for shard in indicvoices.shards(split, s.hf_token)
+        for r in indicvoices.index_shard(shard, s.hf_token)
+    ]
+    s.index_dir.mkdir(parents=True, exist_ok=True)
+    pq.write_table(pa.Table.from_pylist(rows), s.index_dir / f"{split}.parquet")
+    hours = sum(r["duration"] for r in rows) / 3600
+    typer.echo(
+        f"{split}: {len(rows)} segments, {len({r['session'] for r in rows})} sessions, "
+        f"{len({r['speaker_id'] for r in rows})} speakers, {hours:.1f} h"
+    )
+
+
+@app.command()
+def batches(split: str = "valid", max_segments: int = 350) -> None:
+    """Write label batches for the LLM agents."""
+    s = Settings()
+    paths = labels.write_batches(load_index(s, split), s.labels_dir / split / "batches", max_segments)
+    typer.echo(f"wrote {len(paths)} batches to {paths[0].parent}")
+
+
+@app.command()
+def build(split: str = "valid", labelers: str = "a,b", seed: int = 0) -> None:
+    """Cut 8 s clips for every labelled segment. Agreeing labels go to 'test', the rest to 'test_ambiguous'."""
+    s = Settings()
+    index = load_index(s, split)
+    names = labelers.split(",")
+    results = {n: labels.load_results(s.labels_dir / split / "results" / n, index) for n in names}
+    by_shard = defaultdict(set)
+    for r in index:
+        by_shard[r["shard"]].add(r["row"])
+    audio = {}
+    for shard, rows in by_shard.items():
+        audio |= {
+            (shard, i): x for i, x in indicvoices.shard_audio(shard, rows, s.hf_token, s.hf_cache).items()
+        }
+    rng, out = random.Random(seed), []
+    for sid, chunks in labels.sessions(index).items():
+        wavs = {c["chunk"]: audio[(c["shard"], c["row"])] for c in chunks if (c["shard"], c["row"]) in audio}
+        for c, clip in zip(chunks, clips.build(chunks, wavs, results[names[0]], rng), strict=True):
+            if clip is None:
+                continue
+            votes = {n: results[n][(sid, c["chunk"])] for n in names}
+            agree = len({v.complete for v in votes.values()}) == 1
+            out.append(
+                {
+                    "audio": clip,
+                    "endpoint_bool": votes[names[0]].complete,
+                    "split": "test" if agree else "test_ambiguous",
+                    "session": sid,
+                    "chunk": c["chunk"],
+                    "speaker_id": c["speaker_id"],
+                    "spoken_text": c["text"],
+                    **{f"label_{n}": v.complete for n, v in votes.items()},
+                    **{f"confidence_{n}": v.confidence for n, v in votes.items()},
+                }
+            )
+    clips.save(out, s.clips_dir / f"{split}.parquet")
+    counts = defaultdict(int)
+    for r in out:
+        counts[r["split"], r["endpoint_bool"]] += 1
+    typer.echo(
+        f"{len(out)} clips: "
+        + json.dumps({f"{k[0]}/{'finished' if k[1] else 'unfinished'}": v for k, v in sorted(counts.items())})
+    )
+
+
+@app.command()
+def spotcheck(split: str = "valid", per_class: int = 25, seed: int = 0) -> None:
+    """Write a local listening page with random clean test clips, half of each label."""
+    from importlib.resources import files
+
+    s = Settings()
+    rows = [r for r in pq.read_table(s.clips_dir / f"{split}.parquet").to_pylist() if r["split"] == "test"]
+    rng = random.Random(seed)
+    picked = [
+        r
+        for label in (False, True)
+        for r in rng.sample([r for r in rows if r["endpoint_bool"] is label], per_class)
+    ]
+    rng.shuffle(picked)
+    out = s.data_dir / "spotcheck"
+    out.mkdir(parents=True, exist_ok=True)
+    clips_meta = []
+    for r in picked:
+        name = f"{r['session']}_{r['chunk']}.wav"
+        (out / name).write_bytes(r["audio"]["bytes"])
+        clips_meta.append(
+            {
+                "id": f"{r['session']}|{r['chunk']}",
+                "file": name,
+                "finished": r["endpoint_bool"],
+                "text": r["spoken_text"],
+            }
+        )
+    page = (
+        files("urdu_turn")
+        .joinpath("spotcheck.html")
+        .read_text()
+        .replace("__CLIPS__", json.dumps(clips_meta, ensure_ascii=False))
+    )
+    (out / "index.html").write_text(page)
+    typer.echo(f"open {out / 'index.html'}")
+
+
+@app.command()
+def evaluate(split: str = "valid", subset: str = "test") -> None:
+    """Score the existing turn detectors on the clips."""
+    from urdu_turn import evaluate as ev
+
+    s = Settings()
+    report = ev.run(s.clips_dir / f"{split}.parquet", subset, s.hf_cache)
+    s.reports_dir.mkdir(parents=True, exist_ok=True)
+    (s.reports_dir / f"{split}-{subset}.md").write_text(report)
+    typer.echo(report)

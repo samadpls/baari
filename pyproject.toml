@@ -1,0 +1,38 @@
+[project]
+name = "urdu-turn"
+version = "0.0.1"
+description = "End-of-turn detection for Urdu voice agents"
+readme = "README.md"
+license = "BSD-2-Clause"
+authors = [{ name = "Abdul Samad", email = "abdulsamadsid1@gmail.com" }]
+requires-python = ">=3.12"
+dependencies = ["numpy", "onnxruntime"]
+
+[project.optional-dependencies]
+pipeline = [
+    "huggingface_hub>=0.30",
+    "pyarrow>=17",
+    "soundfile",
+    "transformers>=4.48",
+    "scikit-learn",
+    "pydantic>=2",
+    "pydantic-settings>=2",
+    "typer",
+    "torch",
+]
+
+[project.scripts]
+urdu-turn = "urdu_turn.cli:app"
+
+[dependency-groups]
+dev = ["pytest", "ruff"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.uv]
+cache-dir = ".uv-cache"
+
+[tool.ruff]
+line-length = 110
