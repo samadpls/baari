@@ -47,6 +47,20 @@ def index_shard(shard: str, token: str) -> list[dict]:
     return rows
 
 
+def call_id(session: str) -> str:
+    return session.rsplit("_", 1)[0]
+
+
+def without_test(rows: list[dict], test: list[dict]) -> list[dict]:
+    """Drop every segment from a test speaker or from either side of a test call.
+
+    IndicVoices puts many valid-split speakers, and the other side of many valid calls, in train.
+    """
+    speakers = {r["speaker_id"] for r in test}
+    calls = {call_id(r["session"]) for r in test}
+    return [r for r in rows if r["speaker_id"] not in speakers and call_id(r["session"]) not in calls]
+
+
 def decode(flac: bytes) -> np.ndarray:
     x, sr = sf.read(io.BytesIO(flac), dtype="float32")
     if sr != SR:

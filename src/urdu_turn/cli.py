@@ -14,7 +14,10 @@ app = typer.Typer(no_args_is_help=True)
 
 
 def load_index(s: Settings, split: str) -> list[dict]:
-    return pq.read_table(s.index_dir / f"{split}.parquet").to_pylist()
+    rows = pq.read_table(s.index_dir / f"{split}.parquet").to_pylist()
+    if split == "valid":
+        return rows
+    return indicvoices.without_test(rows, pq.read_table(s.index_dir / "valid.parquet").to_pylist())
 
 
 @app.command()

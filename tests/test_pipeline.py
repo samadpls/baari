@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 
 from urdu_turn import clips, labels
-from urdu_turn.indicvoices import SR
+from urdu_turn.indicvoices import SR, without_test
 
 
 def tone(seconds: float) -> np.ndarray:
@@ -42,3 +42,13 @@ def test_load_results_rejects_missing_and_duplicate_labels(tmp_path):
     (tmp_path / "batch-000.jsonl").write_text(line * 2)
     with pytest.raises(ValueError, match="duplicate"):
         labels.load_results(tmp_path, index)
+
+
+def test_without_test_drops_test_speakers_and_both_sides_of_test_calls():
+    test = [{"session": "call1_0", "speaker_id": "A"}]
+    rows = [
+        {"session": "call1_1", "speaker_id": "B"},  # other side of a test call
+        {"session": "call2_0", "speaker_id": "A"},  # test speaker in another call
+        {"session": "call3_0", "speaker_id": "C"},
+    ]
+    assert without_test(rows, test) == [rows[2]]
