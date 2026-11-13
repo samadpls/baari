@@ -36,7 +36,8 @@
 </main>
 <script>
 const CLIPS = __CLIPS__;
-const KEY = "urdu-label-check";
+const NAME = "__NAME__";
+const KEY = "urdu-label-check:" + NAME;
 let answers = {};
 try { answers = JSON.parse(localStorage.getItem(KEY) || "{}"); } catch (e) {}
 const save = () => { try { localStorage.setItem(KEY, JSON.stringify(answers)); } catch (e) {} };
@@ -60,7 +61,7 @@ count();
 document.getElementById("dl").onclick = () => {
   const a = document.createElement("a");
   a.href = URL.createObjectURL(new Blob([JSON.stringify(answers, null, 1)], { type: "application/json" }));
-  a.download = "label-check.json";
+  a.download = NAME + ".json";
   a.click();
 };
 </script>

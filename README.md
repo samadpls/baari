@@ -37,7 +37,10 @@ results do not.
   segments form the test set; the 66 others are kept apart as `test_ambiguous`.
 - **Clips:** the last 8 s of 16 kHz audio ending at the segment, with the speaker's preceding segments
   as context, the same recipe as [Indic Smart Turn](https://github.com/adimyth/indic-smart-turn).
-- **Not yet checked by ear:** labels come from transcripts only. A listening check of 50 clips is next.
+- **Checked by ear:** a native speaker listened to 50 random clips. All 25 "finished" labels were
+  right, and 19 of 25 "unfinished" labels were. In the wrong ones the words stop mid-sentence but the
+  voice sounds finished, which a transcript cannot show. So roughly 1 in 4 "unfinished" clips may
+  really be finished, and the "waits when unfinished" column is a rough measure.
 - **Leakage:** 70 of the 80 test speakers, and the other side of 57 of the 81 test calls, also appear in
   the IndicVoices `train` split. Any training data will leave out those speakers and calls.
 

@@ -1,6 +1,7 @@
 import json
 import random
 from collections import defaultdict
+from pathlib import Path
 
 import pyarrow as pa
 import pyarrow.parquet as pq
@@ -89,29 +90,45 @@ def build(split: str = "valid", labelers: str = "a,b", seed: int = 0) -> None:
 
 
 @app.command()
-def spotcheck(split: str = "valid", per_class: int = 25, seed: int = 0) -> None:
-    """Write a local listening page with random clean test clips, half of each label."""
+def spotcheck(
+    split: str = "valid",
+    per_class: int = 25,
+    unfinished_only: bool = False,
+    skip: Path | None = None,
+    name: str = "spotcheck",
+    seed: int = 0,
+) -> None:
+    """Write a local listening page of clean test clips: a random sample of each label, or every
+    unfinished clip. Clips already answered in the `skip` file are left out."""
     from importlib.resources import files
 
     s = Settings()
-    rows = [r for r in pq.read_table(s.clips_dir / f"{split}.parquet").to_pylist() if r["split"] == "test"]
-    rng = random.Random(seed)
-    picked = [
+    done = set(json.loads(skip.read_text())) if skip else set()
+    rows = [
         r
-        for label in (False, True)
-        for r in rng.sample([r for r in rows if r["endpoint_bool"] is label], per_class)
+        for r in pq.read_table(s.clips_dir / f"{split}.parquet").to_pylist()
+        if r["split"] == "test" and f"{r['session']}|{r['chunk']}" not in done
     ]
+    rng = random.Random(seed)
+    if unfinished_only:
+        picked = [r for r in rows if not r["endpoint_bool"]]
+    else:
+        picked = [
+            r
+            for label in (False, True)
+            for r in rng.sample([r for r in rows if r["endpoint_bool"] is label], per_class)
+        ]
     rng.shuffle(picked)
-    out = s.data_dir / "spotcheck"
+    out = s.data_dir / name
     out.mkdir(parents=True, exist_ok=True)
     clips_meta = []
     for r in picked:
-        name = f"{r['session']}_{r['chunk']}.wav"
-        (out / name).write_bytes(r["audio"]["bytes"])
+        wav = f"{r['session']}_{r['chunk']}.wav"
+        (out / wav).write_bytes(r["audio"]["bytes"])
         clips_meta.append(
             {
                 "id": f"{r['session']}|{r['chunk']}",
-                "file": name,
+                "file": wav,
                 "finished": r["endpoint_bool"],
                 "text": r["spoken_text"],
             }
@@ -121,6 +138,7 @@ def spotcheck(split: str = "valid", per_class: int = 25, seed: int = 0) -> None:
         .joinpath("spotcheck.html")
         .read_text()
         .replace("__CLIPS__", json.dumps(clips_meta, ensure_ascii=False))
+        .replace("__NAME__", name)
     )
     (out / "index.html").write_text(page)
     typer.echo(f"open {out / 'index.html'}")
