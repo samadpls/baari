@@ -1,12 +1,31 @@
-# baari
+<p align="center">
+  <img alt="baari" src="assets/hero.png" width="100%">
+</p>
 
-End-of-turn detection for Urdu voice agents: at every pause, decide whether the speaker has finished
-(reply now) or is only pausing mid-sentence (keep listening).
+<p align="center">
+  <a href="https://samadpls.com"><img alt="by samadpls.com" src="https://img.shields.io/badge/by-samadpls.com-0E6B4F"></a>
+  <a href="LICENSE"><img alt="Code license: BSD-2-Clause" src="https://img.shields.io/badge/code-BSD--2--Clause-0E6B4F"></a>
+  <a href="https://huggingface.co/datasets/ai4bharat/IndicVoices"><img alt="Data: IndicVoices, CC BY 4.0" src="https://img.shields.io/badge/data-IndicVoices%20(CC%20BY%204.0)-F2B544?logo=huggingface&logoColor=000"></a>
+  <img alt="Python 3.12" src="https://img.shields.io/badge/python-3.12-3776AB?logo=python&logoColor=fff">
+</p>
 
-**Status: work in progress.** The Urdu test set and the scores of existing models are done. No model of
-our own yet.
+<p align="center">
+  <b>End-of-turn detection for Urdu voice agents.</b><br>
+  At every pause, it decides whether the speaker has finished (reply now) or is only pausing mid-sentence (keep listening).
+</p>
 
-## Do existing models understand Urdu?
+---
+
+baari (باری) means "turn" in Urdu. The table below shows that today's turn detectors often cut Urdu
+speakers off mid-sentence, or wait after they have finished. baari is a small audio model trained to
+get this right. It follows the [Smart Turn](https://github.com/pipecat-ai/smart-turn) recipe and takes
+the same input and output, so it can stand in for Smart Turn.
+
+**Status: work in progress.** Done so far: the Urdu test set, the scores of existing models, and
+labels for 61,251 training segments. The training code is in place. The first model hasn't been
+trained yet.
+
+## 🎧 Do existing models understand Urdu?
 
 1,588 clips of real Urdu phone conversations, cut from the official held-out split of IndicVoices: 1,470
 where the speaker had finished and 118 where they were pausing mid-sentence. Because most clips are
@@ -46,7 +65,7 @@ results do not.
 
 </details>
 
-## Run it
+## 🛠️ Run it
 
 ```bash
 uv sync --extra pipeline
@@ -58,7 +77,28 @@ uv run baari build                  # cut the 8 s clips
 uv run baari evaluate               # score the existing models
 ```
 
-## Credits
+<details>
+<summary>Training</summary>
+
+The same steps on the IndicVoices `train` split, with one labeler. Test speakers and both sides of
+test calls are left out, and about 5% of the remaining speakers form a dev split that picks the best
+epoch.
+
+```bash
+uv run baari scan --split train
+uv run baari batches --split train
+# the agents write data/labels/train/results/a/batch-*.jsonl
+uv run baari build --split train --labelers a --delete-shards
+uv run baari train                  # fine-tune Indic Smart Turn tiny, export fp32 and int8 ONNX
+```
+
+Training starts from Indic Smart Turn tiny. That model ships only as ONNX, so `baari train` first
+reads its weights back into PyTorch. The [kaggle](kaggle) folder runs the clip build and the
+training on Kaggle.
+
+</details>
+
+## 🙏 Credits
 
 - [IndicVoices](https://huggingface.co/datasets/ai4bharat/IndicVoices) by AI4Bharat, CC BY 4.0.
 - [Indic Smart Turn](https://github.com/adimyth/indic-smart-turn): the clip recipe and labelling prompt
