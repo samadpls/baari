@@ -21,7 +21,8 @@ pip = [sys.executable, "-m", "pip", "install", "-q"]
 subprocess.run([*pip, f"baari[pipeline] @ git+https://github.com/samadpls/baari@{BRANCH}"], check=True)
 
 data = Path("/kaggle/working/data")
-labels = next(Path("/kaggle/input").glob("baari-labels*"))
+# Kaggle mounts a dataset at /kaggle/input/<slug> or deeper, depending on when it was attached.
+labels = next(p.parent.parent for p in Path("/kaggle/input").rglob("valid.parquet") if p.parent.name == "index")
 for part in ("index", "labels"):
     shutil.copytree(labels / part, data / part, dirs_exist_ok=True)
 baari = [sys.executable, "-c", "from baari.cli import app; app()"]
