@@ -23,9 +23,8 @@ speakers off mid-sentence, or wait after they have finished. baari is a small au
 get this right. It follows the [Smart Turn](https://github.com/pipecat-ai/smart-turn) recipe and takes
 the same input and output, so it can stand in for Smart Turn.
 
-**Status: work in progress.** Done so far: the Urdu test set, the scores of existing models, and
-labels for 61,251 training segments. The training code is in place. The first model hasn't been
-trained yet.
+**Status: work in progress.** Done so far: the Urdu test set, the scores of existing models, labels
+for 61,251 training segments, and the `baari` package on PyPI. The first model is training now.
 
 ## 🎧 Do existing models understand Urdu?
 
@@ -85,9 +84,17 @@ detector.probability(audio)  # the same decision as a number from 0 to 1
 It needs only numpy and onnxruntime. One call takes about 12 ms on 4 CPU threads and 37 ms on one
 (MacBook Pro, M3 Pro). Use `threads=1` on a server that handles many calls at once.
 
-**The baari model is not released yet.** Until it is, `TurnDetector(path=...)` runs any Smart Turn
-style ONNX file, such as [Indic Smart Turn tiny](https://huggingface.co/adimyth/indic-smart-turn), the
-best existing model in the table above.
+In [Pipecat](https://github.com/pipecat-ai/pipecat), baari replaces Smart Turn with one line, because it
+takes the same input and gives the same output:
+
+```python
+from baari import model_path
+from pipecat.audio.turn.smart_turn.local_smart_turn_v3 import LocalSmartTurnAnalyzerV3
+
+turn_analyzer = LocalSmartTurnAnalyzerV3(smart_turn_model_path=model_path())
+```
+
+`TurnDetector(path=...)` runs a local ONNX file instead of downloading one.
 
 ## 🛠️ Run it
 
