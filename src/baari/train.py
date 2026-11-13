@@ -209,6 +209,14 @@ def predict(model: SmartTurn, data: Clips, device: str, batch: int = 128, worker
     return np.concatenate(out)
 
 
+def code_version() -> str:
+    """The commit this run was installed from (pip records it for git installs), else 'local'."""
+    from importlib.metadata import distribution
+
+    url = json.loads(distribution("baari").read_text("direct_url.json") or "{}")
+    return url.get("vcs_info", {}).get("commit_id", "local")
+
+
 def memory() -> str:
     """Free memory on Linux, for the Kaggle log. MemAvailable includes page cache the kernel can drop."""
     try:
@@ -300,6 +308,7 @@ def run(
     dev, tst = Clips([(urdu, ["dev"])]), Clips([(test, ["test"])])
     print(f"loaded {len(train)} train clips in {time.time() - t_load:.0f}s; {memory()}", flush=True)
     log = {
+        "code": code_version(),
         "config": {k: str(v) for k, v in locals().items() if k in run.__code__.co_varnames[:12]},
         "sizes": {
             "train": len(train),
