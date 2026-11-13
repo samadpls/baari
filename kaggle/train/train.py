@@ -26,7 +26,8 @@ indic = Path(
         local_dir="/tmp/indic",
     )
 )
-clips = next(Path("/kaggle/input").glob("baari-build-clips*")) / "data/clips"
+# Kaggle mounts another job's output at /kaggle/input/<slug> or deeper, depending on when it was attached.
+clips = next(p.parent for p in Path("/kaggle/input").rglob("valid.parquet") if p.parent.name == "clips")
 extra = [a for p in sorted((indic / "built").glob("*.parquet")) for a in ("--extra", str(p))]
 baari = [sys.executable, "-c", "from baari.cli import app; app()"]
 env = dict(os.environ, DATA_DIR="/tmp/baari")
