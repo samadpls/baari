@@ -19,7 +19,13 @@ def model_path() -> str:
     if not path.exists():
         path.parent.mkdir(parents=True, exist_ok=True)
         part = path.with_suffix(".part")
-        urllib.request.urlretrieve(MODEL_URL, part)
+        try:
+            urllib.request.urlretrieve(MODEL_URL, part)
+        except OSError as e:
+            raise RuntimeError(
+                f"Could not download the baari model from {MODEL_URL} ({e}). "
+                "Pass TurnDetector(path=...) to use a local Smart Turn style ONNX file."
+            ) from e
         part.replace(path)
     return str(path)
 

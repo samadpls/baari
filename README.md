@@ -1,12 +1,14 @@
 <p align="center">
-  <img alt="baari: knows when an Urdu speaker has finished talking" src="assets/hero.svg" width="100%">
+  <img alt="baari: knows when an Urdu speaker has finished talking" src="https://raw.githubusercontent.com/samadpls/baari/main/assets/hero.svg" width="100%">
 </p>
 
 <p align="center">
   <a href="https://samadpls.com"><img alt="by samadpls.com" src="https://img.shields.io/badge/by-samadpls.com-0E6B4F"></a>
-  <a href="LICENSE"><img alt="Code license: BSD-2-Clause" src="https://img.shields.io/badge/code-BSD--2--Clause-0E6B4F"></a>
+  <a href="https://github.com/samadpls/baari/blob/main/LICENSE"><img alt="Code license: BSD-2-Clause" src="https://img.shields.io/badge/code-BSD--2--Clause-0E6B4F"></a>
   <a href="https://huggingface.co/datasets/ai4bharat/IndicVoices"><img alt="Data: IndicVoices, CC BY 4.0" src="https://img.shields.io/badge/data-IndicVoices%20(CC%20BY%204.0)-F2B544?logo=huggingface&logoColor=000"></a>
-  <img alt="Python 3.12" src="https://img.shields.io/badge/python-3.12-3776AB?logo=python&logoColor=fff">
+  <a href="https://pypi.org/project/baari/"><img alt="PyPI" src="https://img.shields.io/pypi/v/baari?color=0E6B4F&label=pypi"></a>
+  <a href="https://pepy.tech/projects/baari"><img alt="Downloads" src="https://static.pepy.tech/badge/baari"></a>
+  <img alt="Python 3.10+" src="https://img.shields.io/badge/python-3.10%2B-3776AB?logo=python&logoColor=fff">
 </p>
 
 <p align="center">
@@ -53,7 +55,7 @@ the audio is prepared flip about 1 answer in 100. fp32 results stay the same.
   [IndicVoices](https://huggingface.co/datasets/ai4bharat/IndicVoices) Urdu (CC BY 4.0): 1,654 segments,
   81 calls, 80 speakers, 1.7 hours. Each segment ends at a pause.
 - **Labels:** two LLM agents each read every call's transcript in order and marked whether the speaker
-  had finished at the end of each segment ([prompt](prompts/label.md)). They agreed on 96.0%. Agreed
+  had finished at the end of each segment ([prompt](https://github.com/samadpls/baari/blob/main/prompts/label.md)). They agreed on 96.0%. Agreed
   segments form the test set; the 66 others are kept apart as `test_ambiguous`.
 - **Clips:** the last 8 s of 16 kHz audio ending at the segment, with the speaker's preceding segments
   as context, the same recipe as [Indic Smart Turn](https://github.com/adimyth/indic-smart-turn).
@@ -65,6 +67,27 @@ the audio is prepared flip about 1 answer in 100. fp32 results stay the same.
   the IndicVoices `train` split. Any training data will leave out those speakers and calls.
 
 </details>
+
+## Use it
+
+```bash
+pip install baari
+```
+
+```python
+from baari import TurnDetector
+
+detector = TurnDetector(threads=4)  # downloads baari's 9 MB int8 model once
+detector.is_finished(audio)  # 16 kHz mono audio (float or int16) that ends at the pause
+detector.probability(audio)  # the same decision as a number from 0 to 1
+```
+
+It needs only numpy and onnxruntime. One call takes about 12 ms on 4 CPU threads and 37 ms on one
+(MacBook Pro, M3 Pro). Use `threads=1` on a server that handles many calls at once.
+
+**The baari model is not released yet.** Until it is, `TurnDetector(path=...)` runs any Smart Turn
+style ONNX file, such as [Indic Smart Turn tiny](https://huggingface.co/adimyth/indic-smart-turn), the
+best existing model in the table above.
 
 ## 🛠️ Run it
 
@@ -94,7 +117,7 @@ uv run baari train                  # fine-tune Indic Smart Turn tiny, export fp
 ```
 
 Training starts from Indic Smart Turn tiny. That model ships only as ONNX, so `baari train` first
-reads its weights back into PyTorch. The [kaggle](kaggle) folder runs the clip build and the
+reads its weights back into PyTorch. The [kaggle](https://github.com/samadpls/baari/tree/main/kaggle) folder runs the clip build and the
 training on Kaggle.
 
 </details>
@@ -102,6 +125,6 @@ training on Kaggle.
 ---
 
 <p align="center">
-  <a href="docs/CREDITS.md">Credits</a> · <a href="CONTRIBUTING.md">Contributing</a> · <a href="LICENSE">BSD-2-Clause license</a><br>
+  <a href="https://github.com/samadpls/baari/blob/main/docs/CREDITS.md">Credits</a> · <a href="https://github.com/samadpls/baari/blob/main/CONTRIBUTING.md">Contributing</a> · <a href="https://github.com/samadpls/baari/blob/main/LICENSE">BSD-2-Clause license</a><br>
   Made by <a href="https://samadpls.com">Abdul Samad</a> (abdulsamadsid1@gmail.com)
 </p>
