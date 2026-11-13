@@ -7,6 +7,8 @@ Training starts from released fp32 ONNX weights, which `recover` loads back into
 
 import io
 import json
+import os
+import tempfile
 import time
 from pathlib import Path
 
@@ -137,15 +139,29 @@ def recover(onnx_path: Path, model: SmartTurn) -> None:
 
 
 class Clips(torch.utils.data.Dataset):
-    """WAV bytes and labels from clip parquet files, kept in Arrow buffers that forked workers share."""
+    """WAV bytes and labels from clip parquet files.
+
+    The audio (about 15 GB for the Urdu training clips alone) is copied into a temporary Arrow file and
+    memory-mapped, so it lives in the OS page cache rather than process memory, and forked DataLoader
+    workers share it. The file is unlinked at once: the mapping keeps it readable until the process ends.
+    """
+
+    SCHEMA = pa.schema([("wav", pa.binary()), ("y", pa.bool_())])
 
     def __init__(self, sources: list[tuple[Path, list[str]]]):
-        parts = []
-        for path, splits in sources:
-            t = pq.read_table(path, columns=["audio", "endpoint_bool", "split"])
-            t = t.filter(pc.is_in(t["split"], value_set=pa.array(splits)))
-            parts.append(pa.table({"wav": pc.struct_field(t["audio"], "bytes"), "y": t["endpoint_bool"]}))
-        t = pa.concat_tables(parts).combine_chunks()
+        fd, name = tempfile.mkstemp(prefix="baari-clips-", suffix=".arrow")
+        os.close(fd)
+        with pa.OSFile(name, "wb") as f, pa.ipc.new_file(f, self.SCHEMA) as writer:
+            for path, splits in sources:
+                wanted = pa.array(splits)
+                for b in pq.ParquetFile(path).iter_batches(512, columns=["audio", "endpoint_bool", "split"]):
+                    b = b.filter(pc.is_in(b.column("split"), value_set=wanted))
+                    wav = pc.struct_field(b.column("audio"), "bytes").cast(pa.binary())
+                    writer.write_batch(
+                        pa.record_batch([wav, b.column("endpoint_bool").cast(pa.bool_())], schema=self.SCHEMA)
+                    )
+        t = pa.ipc.open_file(pa.memory_map(name)).read_all()
+        os.unlink(name)
         self.wavs = t["wav"]
         self.y = t["y"].to_numpy(zero_copy_only=False).astype(np.float32)
 
@@ -191,6 +207,16 @@ def predict(model: SmartTurn, data: Clips, device: str, batch: int = 128, worker
     ):
         out.append(torch.sigmoid(model(features(wavs, device)).float()).cpu().numpy())
     return np.concatenate(out)
+
+
+def memory() -> str:
+    """Free memory on Linux, for the Kaggle log. MemAvailable includes page cache the kernel can drop."""
+    try:
+        info = dict(line.split(":", 1) for line in Path("/proc/meminfo").read_text().splitlines())
+    except OSError:
+        return "memory n/a"
+    gb = {k: int(info[k].split()[0]) / 1e6 for k in ("MemAvailable", "MemTotal")}
+    return f"{gb['MemAvailable']:.1f} of {gb['MemTotal']:.1f} GB memory free"
 
 
 def summary(p: np.ndarray, y: np.ndarray) -> dict:
@@ -269,8 +295,10 @@ def run(
     torch.manual_seed(seed)
     device = "cuda" if torch.cuda.is_available() else "cpu"
     out.mkdir(parents=True, exist_ok=True)
+    t_load = time.time()
     train = Clips([(urdu, ["train"])] + [(p, ["train"]) for p in extra])
     dev, tst = Clips([(urdu, ["dev"])]), Clips([(test, ["test"])])
+    print(f"loaded {len(train)} train clips in {time.time() - t_load:.0f}s; {memory()}", flush=True)
     log = {
         "config": {k: str(v) for k, v in locals().items() if k in run.__code__.co_varnames[:12]},
         "sizes": {
@@ -330,7 +358,7 @@ def run(
             step += 1
             if step % 100 == 0:
                 print(
-                    f"step {step}/{total} loss {np.mean(losses[-100:]):.4f} {time.time() - t0:.0f}s",
+                    f"step {step}/{total} loss {np.mean(losses[-100:]):.4f} {time.time() - t0:.0f}s; {memory()}",
                     flush=True,
                 )
             if step >= total:
