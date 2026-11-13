@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import numpy as np
 import pytest
 
@@ -51,13 +53,44 @@ def test_turn_detector_gives_the_same_probability_as_the_evaluation_code(tiny_on
     detector, reference = TurnDetector(tiny_onnx), OnnxModel(tiny_onnx)
     for seconds in (3.0, 8.0, 11.5):
         wav = speech_like(seconds, seed=int(seconds))
-        assert detector.probability(wav) == pytest.approx(float(reference([wav])[0]), abs=1e-4)
+        assert detector.probability(wav, sample_rate=SR) == pytest.approx(
+            float(reference([wav])[0]), abs=1e-4
+        )
 
 
 def test_turn_detector_reads_int16_audio_and_rejects_stereo(tiny_onnx):
     detector = TurnDetector(tiny_onnx)
     wav = speech_like(5.0, seed=1)
     pcm = np.round(wav * 32767).astype(np.int16)
-    assert detector.probability(pcm) == pytest.approx(detector.probability(pcm / 32768.0), abs=1e-6)
+    same = detector.probability(pcm / 32768.0, sample_rate=SR)
+    assert detector.probability(pcm, sample_rate=SR) == pytest.approx(same, abs=1e-6)
     with pytest.raises(ValueError):
-        detector.probability(np.stack([wav, wav], axis=1))
+        detector.probability(np.stack([wav, wav], axis=1), sample_rate=SR)
+
+
+def test_turn_detector_refuses_audio_that_is_not_16_khz(tiny_onnx):
+    with pytest.raises(ValueError, match="16000 Hz"):
+        TurnDetector(tiny_onnx).is_finished(speech_like(2.0, seed=2)[::2], sample_rate=8000)
+
+
+def test_model_download_lands_complete_under_its_revision(tmp_path, monkeypatch):
+    from baari import detector
+
+    source = tmp_path / "model.onnx"
+    source.write_bytes(b"onnx bytes")
+    monkeypatch.setattr(detector, "MODEL_URL", source.as_uri())
+    monkeypatch.setenv("BAARI_CACHE", str(tmp_path / "cache"))
+    path = detector.model_path()
+    assert Path(path).read_bytes() == b"onnx bytes"
+    assert path.endswith(f"{detector.MODEL_REVISION}/baari-int8.onnx")
+    assert [p.name for p in (tmp_path / "cache" / detector.MODEL_REVISION).iterdir()] == ["baari-int8.onnx"]
+
+
+def test_failed_model_download_leaves_no_partial_file(tmp_path, monkeypatch):
+    from baari import detector
+
+    monkeypatch.setattr(detector, "MODEL_URL", (tmp_path / "missing.onnx").as_uri())
+    monkeypatch.setenv("BAARI_CACHE", str(tmp_path / "cache"))
+    with pytest.raises(RuntimeError, match="Could not download"):
+        detector.model_path()
+    assert not [p for p in (tmp_path / "cache").rglob("*") if p.is_file()]

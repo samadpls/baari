@@ -77,12 +77,13 @@ pip install baari
 from baari import TurnDetector
 
 detector = TurnDetector(threads=4)  # downloads baari's 9 MB int8 model once
-detector.is_finished(audio)  # 16 kHz mono audio (float or int16) that ends at the pause
-detector.probability(audio)  # the same decision as a number from 0 to 1
+detector.is_finished(audio, sample_rate=16000)  # mono audio (float or int16) that ends at the pause
+detector.probability(audio, sample_rate=16000)  # the same decision as a number from 0 to 1
 ```
 
 It needs only numpy and onnxruntime. One call takes about 12 ms on 4 CPU threads and 37 ms on one
-(MacBook Pro, M3 Pro). Use `threads=1` on a server that handles many calls at once.
+(MacBook Pro, M3 Pro). Use `threads=1` on a server that handles many calls at once. baari needs 16 kHz
+audio; for 8 kHz phone audio, resample first, for example with `soxr.resample(audio, 8000, 16000)`.
 
 In [Pipecat](https://github.com/pipecat-ai/pipecat), baari replaces Smart Turn with one line, because it
 takes the same input and gives the same output:
