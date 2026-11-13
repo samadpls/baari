@@ -1,9 +1,9 @@
 {
   "id": "samadpls/baari-build-clips",
   "title": "baari build clips",
-  "code_file": "build.py",
+  "code_file": "build.ipynb",
   "language": "python",
-  "kernel_type": "script",
+  "kernel_type": "notebook",
   "is_private": true,
   "enable_gpu": false,
   "enable_internet": true,
