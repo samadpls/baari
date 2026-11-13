@@ -98,13 +98,9 @@ training on Kaggle.
 
 </details>
 
-## 🙏 Credits
+---
 
-- [IndicVoices](https://huggingface.co/datasets/ai4bharat/IndicVoices) by AI4Bharat, CC BY 4.0.
-- [Indic Smart Turn](https://github.com/adimyth/indic-smart-turn): the clip recipe and labelling prompt
-  are adapted from it (BSD-2-Clause, see [LICENSE.indic-smart-turn](LICENSE.indic-smart-turn)).
-- [Smart Turn](https://github.com/pipecat-ai/smart-turn) by Pipecat.
-
-The code is BSD-2-Clause ([LICENSE](LICENSE)).
-
-Made by [Abdul Samad](https://samadpls.com) (abdulsamadsid1@gmail.com).
+<p align="center">
+  <a href="docs/CREDITS.md">Credits</a> · <a href="CONTRIBUTING.md">Contributing</a> · <a href="LICENSE">BSD-2-Clause license</a><br>
+  Made by <a href="https://samadpls.com">Abdul Samad</a> (abdulsamadsid1@gmail.com)
+</p>

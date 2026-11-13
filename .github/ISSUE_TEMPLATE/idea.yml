@@ -1,0 +1,26 @@
+name: Idea or improvement
+description: Suggest a feature, better data, or a change to how baari works.
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: The problem
+      description: What is missing or could be better, and who it affects.
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: Your idea
+      description: What you would change. Links to papers, data or code are welcome.
+    validations:
+      required: true
+  - type: dropdown
+    id: help
+    attributes:
+      label: Would you like to work on it?
+      options:
+        - Yes, I'd like to open a pull request
+        - Maybe, with some guidance
+        - No, just suggesting it
