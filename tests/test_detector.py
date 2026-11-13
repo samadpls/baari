@@ -83,7 +83,13 @@ def test_model_download_lands_complete_under_its_revision(tmp_path, monkeypatch)
     path = detector.model_path()
     assert Path(path).read_bytes() == b"onnx bytes"
     assert path.endswith(f"{detector.MODEL_REVISION}/baari-int8.onnx")
-    assert [p.name for p in (tmp_path / "cache" / detector.MODEL_REVISION).iterdir()] == ["baari-int8.onnx"]
+    assert detector.model_path("fp32").endswith(f"{detector.MODEL_REVISION}/baari-fp32.onnx")
+    with pytest.raises(ValueError):
+        detector.model_path("int4")
+    assert sorted(p.name for p in (tmp_path / "cache" / detector.MODEL_REVISION).iterdir()) == [
+        "baari-fp32.onnx",
+        "baari-int8.onnx",
+    ]
 
 
 def test_failed_model_download_leaves_no_partial_file(tmp_path, monkeypatch):
