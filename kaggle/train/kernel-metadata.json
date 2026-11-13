@@ -10,5 +10,5 @@
   "dataset_sources": [],
   "competition_sources": [],
   "kernel_sources": ["samadpls/baari-build-clips"],
-  "keywords": ["audio"]
+  "keywords": []
 }
