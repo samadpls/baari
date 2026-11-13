@@ -13,17 +13,20 @@ from baari.features import compute_whisper_log_mel_features
 SAMPLE_RATE = 16000
 # Each release pins one model commit, so a cached file always matches the code that reads it and an
 # updated model reaches people through a new release, never by changing under an old one.
-MODEL_REVISION = "main"  # shortcut: not pinned until the model is uploaded; set its commit before release
-MODEL_URL = f"https://huggingface.co/samadpls/baari/resolve/{MODEL_REVISION}/baari-int8.onnx"
+MODEL_REVISION = "81a0b995fdb599aa75117a8727a97b6ac4b72c9d"  # samadpls/baari, first release
+MODEL_URL = "https://huggingface.co/samadpls/baari/resolve/{revision}/{file}"
+# int8 is about 2.5x faster; fp32 scores the same on every CPU, while int8 varies by about 2 points
+# between Arm and x86.
+MODEL_FILES = {"int8": "baari-int8.onnx", "fp32": "baari-fp32.onnx"}
 
 
-def model_path() -> str:
-    """Path to baari's int8 ONNX file, downloaded once into ~/.cache/baari (or $BAARI_CACHE)."""
-    path = (
-        Path(os.environ.get("BAARI_CACHE", Path.home() / ".cache" / "baari"))
-        / MODEL_REVISION
-        / "baari-int8.onnx"
-    )
+def model_path(precision: str = "int8") -> str:
+    """Path to a baari ONNX file ("int8" or "fp32"), downloaded once into ~/.cache/baari (or $BAARI_CACHE)."""
+    if precision not in MODEL_FILES:
+        raise ValueError(f"precision must be one of {sorted(MODEL_FILES)}, got {precision!r}")
+    file = MODEL_FILES[precision]
+    url = MODEL_URL.format(revision=MODEL_REVISION, file=file)
+    path = Path(os.environ.get("BAARI_CACHE", Path.home() / ".cache" / "baari")) / MODEL_REVISION / file
     if not path.exists():
         path.parent.mkdir(parents=True, exist_ok=True)
         # A file of its own per process, renamed into place only when complete, so several workers
@@ -31,12 +34,12 @@ def model_path() -> str:
         fd, part = tempfile.mkstemp(dir=path.parent, suffix=".part")
         os.close(fd)
         try:
-            urllib.request.urlretrieve(MODEL_URL, part)
+            urllib.request.urlretrieve(url, part)
             os.replace(part, path)
         except OSError as e:
             Path(part).unlink(missing_ok=True)
             raise RuntimeError(
-                f"Could not download the baari model from {MODEL_URL} ({e}). "
+                f"Could not download the baari model from {url} ({e}). "
                 "Pass TurnDetector(path=...) to use a local Smart Turn style ONNX file."
             ) from e
     return str(path)
@@ -47,14 +50,15 @@ class TurnDetector:
 
     threads: CPU threads for one call. 1 suits a server handling many calls at once; 4 makes a single
     call about three times faster.
+    precision: "int8" (default, fastest) or "fp32". Ignored when `path` points to a local ONNX file.
     """
 
-    def __init__(self, path: str | None = None, threads: int = 1):
+    def __init__(self, path: str | None = None, threads: int = 1, precision: str = "int8"):
         options = ort.SessionOptions()
         options.intra_op_num_threads = threads
         options.inter_op_num_threads = 1
         self.session = ort.InferenceSession(
-            path or model_path(), sess_options=options, providers=["CPUExecutionProvider"]
+            path or model_path(precision), sess_options=options, providers=["CPUExecutionProvider"]
         )
 
     def probability(self, audio: np.ndarray, *, sample_rate: int) -> float:

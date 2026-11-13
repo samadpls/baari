@@ -3,6 +3,7 @@
 </p>
 
 <p align="center">
+  <a href="https://huggingface.co/samadpls/baari"><img alt="Model on Hugging Face" src="https://img.shields.io/badge/model-samadpls%2Fbaari-FFD21E?logo=huggingface&logoColor=000"></a>
   <a href="https://samadpls.com"><img alt="by samadpls.com" src="https://img.shields.io/badge/by-samadpls.com-0E6B4F"></a>
   <a href="https://github.com/samadpls/baari/blob/main/LICENSE"><img alt="Code license: BSD-2-Clause" src="https://img.shields.io/badge/code-BSD--2--Clause-0E6B4F"></a>
   <a href="https://huggingface.co/datasets/ai4bharat/IndicVoices"><img alt="Data: IndicVoices, CC BY 4.0" src="https://img.shields.io/badge/data-IndicVoices%20(CC%20BY%204.0)-F2B544?logo=huggingface&logoColor=000"></a>
@@ -23,18 +24,20 @@ speakers off mid-sentence, or wait after they have finished. baari is a small au
 get this right. It follows the [Smart Turn](https://github.com/pipecat-ai/smart-turn) recipe and takes
 the same input and output, so it can stand in for Smart Turn.
 
-**Status: work in progress.** Done so far: the Urdu test set, the scores of existing models, labels
-for 61,251 training segments, and the `baari` package on PyPI. The first model is training now.
+**Status:** the first model is out, on [Hugging Face](https://huggingface.co/samadpls/baari) and as the
+`baari` package on PyPI. On the Urdu test set below, it beats every existing turn detector.
 
-## 🎧 Do existing models understand Urdu?
+## 🎧 Results on Urdu
 
 1,588 clips of real Urdu phone conversations, cut from the official held-out split of IndicVoices: 1,470
 where the speaker had finished and 118 where they were pausing mid-sentence. Because most clips are
 "finished", a model that always says "finished" gets 92.6% plain accuracy, so the fair score is the
-average of the two middle columns (balanced accuracy).
+average of the last two columns (balanced accuracy).
 
 | Model | Balanced accuracy (95% CI) | Waits when unfinished | Replies when finished |
 |---|---|---|---|
+| **baari int8** (default) | **77.0%** (72.9–81.0) | 62.7% | 91.4% |
+| **baari fp32** | **76.8%** (72.4–80.7) | 63.6% | 89.9% |
 | Always says "finished" (reference) | 50.0% | 0.0% | 100.0% |
 | Smart Turn v3.2 (CPU, int8) | 63.4% (58.8–68.1) | 57.6% | 69.2% |
 | Smart Turn v3.2 (GPU, fp32) | 58.8% (54.8–63.0) | 76.3% | 41.3% |
@@ -43,9 +46,11 @@ average of the two middle columns (balanced accuracy).
 | Indic Smart Turn base (fp32) | 70.9% (66.5–75.4) | 47.5% | 94.4% |
 | PuristanLabs1/urdu-turn-v2 (Urdu) | 51.8% (48.4–55.4) | 16.9% | 86.7% |
 
-Scored on a MacBook Pro (M3 Pro), with the same audio preparation Pipecat uses. int8 models are
-sensitive: their scores shift by a few points between Arm and x86 CPUs, and even tiny changes in how
-the audio is prepared flip about 1 answer in 100. fp32 results stay the same.
+Scored on a MacBook Pro (M3 Pro), with the same audio preparation Pipecat uses. On the same clips,
+baari fp32 beats Indic Smart Turn tiny int8, the best existing model, by 3.3 points (paired bootstrap,
+95% CI +0.3 to +6.4). int8 models are sensitive: their scores shift by a few points between Arm and x86
+CPUs (baari int8 gets 77.0% on Arm and 74.9% on x86), and even tiny changes in how the audio is
+prepared flip about 1 answer in 100. fp32 results stay the same.
 
 <details>
 <summary>How the test set was made</summary>
@@ -81,8 +86,8 @@ detector.is_finished(audio, sample_rate=16000)  # mono audio (float or int16) th
 detector.probability(audio, sample_rate=16000)  # the same decision as a number from 0 to 1
 ```
 
-It needs only numpy and onnxruntime. One call takes about 12 ms on 4 CPU threads and 37 ms on one
-(MacBook Pro, M3 Pro). Use `threads=1` on a server that handles many calls at once. baari needs 16 kHz
+It needs only numpy and onnxruntime. With the default int8 file, one call takes about 12 ms on 4 CPU
+threads and 36 ms on one; `TurnDetector(precision="fp32")` takes 23 and 77 ms (MacBook Pro, M3 Pro). Use `threads=1` on a server that handles many calls at once. baari needs 16 kHz
 audio; for 8 kHz phone audio, resample first, for example with `soxr.resample(audio, 8000, 16000)`.
 
 In [Pipecat](https://github.com/pipecat-ai/pipecat), baari replaces Smart Turn with one line, because it
