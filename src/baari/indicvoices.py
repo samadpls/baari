@@ -68,9 +68,11 @@ def decode(flac: bytes) -> np.ndarray:
     return x if x.ndim == 1 else x.mean(axis=1)
 
 
-def shard_audio(shard: str, rows: set[int], token: str, cache: Path) -> dict[int, np.ndarray]:
-    """Download one shard and decode the requested rows."""
-    path = hf_hub_download(REPO, shard, repo_type="dataset", token=token, cache_dir=cache)
+def shard_audio(
+    shard: str, rows: set[int], token: str, cache: Path, delete: bool = False
+) -> dict[int, np.ndarray]:
+    """Download one shard and decode the requested rows; `delete` removes the download afterwards."""
+    path = Path(hf_hub_download(REPO, shard, repo_type="dataset", token=token, cache_dir=cache))
     pf = pq.ParquetFile(path)
     out, base = {}, 0
     for g in range(pf.metadata.num_row_groups):
@@ -80,4 +82,6 @@ def shard_audio(shard: str, rows: set[int], token: str, cache: Path) -> dict[int
             for r in want:
                 out[r] = decode(col[r - base].as_py()["bytes"])
         base += n
+    if delete:
+        path.resolve().unlink()
     return out

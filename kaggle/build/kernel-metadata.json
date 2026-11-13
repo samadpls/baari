@@ -1,0 +1,14 @@
+{
+  "id": "samadpls/baari-build-clips",
+  "title": "baari build clips",
+  "code_file": "build.py",
+  "language": "python",
+  "kernel_type": "script",
+  "is_private": true,
+  "enable_gpu": false,
+  "enable_internet": true,
+  "dataset_sources": ["samadpls/baari-labels"],
+  "competition_sources": [],
+  "kernel_sources": [],
+  "keywords": []
+}

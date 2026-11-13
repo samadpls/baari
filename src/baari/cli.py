@@ -1,7 +1,9 @@
 import json
 import random
+import zlib
 from collections import defaultdict
 from pathlib import Path
+from typing import Annotated
 
 import pyarrow as pa
 import pyarrow.parquet as pq
@@ -46,34 +48,58 @@ def batches(split: str = "valid", max_segments: int = 350) -> None:
     typer.echo(f"wrote {len(paths)} batches to {paths[0].parent}")
 
 
+def split_of(split: str, speaker_id: str, agree: bool) -> str:
+    """valid becomes the test set; any other split is cut by speaker into train and a 5% dev set."""
+    if split == "valid":
+        return "test" if agree else "test_ambiguous"
+    return "dev" if zlib.crc32(speaker_id.encode()) % 20 == 0 else "train"
+
+
 @app.command()
-def build(split: str = "valid", labelers: str = "a,b", seed: int = 0) -> None:
-    """Cut 8 s clips for every labelled segment. Agreeing labels go to 'test', the rest to 'test_ambiguous'."""
+def build(split: str = "valid", labelers: str = "a,b", seed: int = 0, delete_shards: bool = False) -> None:
+    """Cut 8 s clips for every labelled segment, one shard at a time, and write them to data/clips/<split>.parquet.
+
+    For valid, agreeing labels go to 'test' and the rest to 'test_ambiguous'. Labeler order matters: the
+    first labeler's label is the clip's label and sets the context gaps.
+    """
     s = Settings()
     index = load_index(s, split)
     names = labelers.split(",")
     results = {n: labels.load_results(s.labels_dir / split / "results" / n, index) for n in names}
-    by_shard = defaultdict(set)
+    sessions = labels.sessions(index)
+    rows_of, need, in_shard = defaultdict(set), defaultdict(set), defaultdict(set)
     for r in index:
-        by_shard[r["shard"]].add(r["row"])
-    audio = {}
-    for shard, rows in by_shard.items():
-        audio |= {
-            (shard, i): x for i, x in indicvoices.shard_audio(shard, rows, s.hf_token, s.hf_cache).items()
-        }
-    rng, out = random.Random(seed), []
-    for sid, chunks in labels.sessions(index).items():
-        wavs = {c["chunk"]: audio[(c["shard"], c["row"])] for c in chunks if (c["shard"], c["row"]) in audio}
-        for c, clip in zip(chunks, clips.build(chunks, wavs, results[names[0]], rng), strict=True):
-            if clip is None:
+        rows_of[r["shard"]].add(r["row"])
+        need[r["session"]].add(r["shard"])
+        in_shard[r["shard"]].add(r["session"])
+    rng, audio, counts, writer = random.Random(seed), {}, defaultdict(int), None
+    path = s.clips_dir / f"{split}.parquet"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    for n, shard in enumerate(sorted(rows_of), 1):
+        got = indicvoices.shard_audio(shard, rows_of[shard], s.hf_token, s.hf_cache, delete=delete_shards)
+        audio |= {(shard, i): x for i, x in got.items()}
+        out = []
+        # A few sessions span two shards; cut them once all their audio is in.
+        for sid in [
+            sid for sid in sessions if sid in in_shard[shard]
+        ]:  # index order keeps the gaps reproducible
+            need[sid].discard(shard)
+            if need[sid]:
                 continue
-            votes = {n: results[n][(sid, c["chunk"])] for n in names}
-            agree = len({v.complete for v in votes.values()}) == 1
-            out.append(
-                {
+            chunks = sessions[sid]
+            wavs = {
+                c["chunk"]: audio.pop((c["shard"], c["row"]))
+                for c in chunks
+                if (c["shard"], c["row"]) in audio
+            }
+            for c, clip in zip(chunks, clips.build(chunks, wavs, results[names[0]], rng), strict=True):
+                if clip is None:
+                    continue
+                votes = {n: results[n][(sid, c["chunk"])] for n in names}
+                row = {
                     "audio": clip,
                     "endpoint_bool": votes[names[0]].complete,
-                    "split": "test" if agree else "test_ambiguous",
+                    "split": split_of(split, c["speaker_id"], len({v.complete for v in votes.values()}) == 1),
                     "session": sid,
                     "chunk": c["chunk"],
                     "speaker_id": c["speaker_id"],
@@ -81,13 +107,17 @@ def build(split: str = "valid", labelers: str = "a,b", seed: int = 0) -> None:
                     **{f"label_{n}": v.complete for n, v in votes.items()},
                     **{f"confidence_{n}": v.confidence for n, v in votes.items()},
                 }
-            )
-    clips.save(out, s.clips_dir / f"{split}.parquet")
-    counts = defaultdict(int)
-    for r in out:
-        counts[r["split"], r["endpoint_bool"]] += 1
+                counts[row["split"], row["endpoint_bool"]] += 1
+                out.append(row)
+        if out:
+            table = clips.table(out)
+            writer = writer or pq.ParquetWriter(path, table.schema)
+            writer.write_table(table, row_group_size=500)
+        typer.echo(f"[{n}/{len(rows_of)}] {shard}: {len(out)} clips", err=True)
+    if writer:
+        writer.close()
     typer.echo(
-        f"{len(out)} clips: "
+        f"{sum(counts.values())} clips: "
         + json.dumps({f"{k[0]}/{'finished' if k[1] else 'unfinished'}": v for k, v in sorted(counts.items())})
     )
 
@@ -157,3 +187,51 @@ def evaluate(split: str = "valid", subset: str = "test") -> None:
     s.reports_dir.mkdir(parents=True, exist_ok=True)
     (s.reports_dir / f"{split}-{subset}.md").write_text(report)
     typer.echo(report)
+
+
+@app.command()
+def train(
+    clips: Path | None = None,
+    test: Path | None = None,
+    extra: Annotated[
+        list[Path] | None, typer.Option(help="More clip files; their 'train' rows are mixed in.")
+    ] = None,
+    init: Annotated[str, typer.Option(help="fp32 ONNX to start from: a path or repo:file")] = (
+        "adimyth/indic-smart-turn:indic-smart-turn-tiny-fp32.onnx"
+    ),
+    out: Path = Path("data/models/run"),
+    epochs: float = 3,
+    lr: float = 2e-5,
+    batch: int = 64,
+    workers: int = 4,
+    max_steps: int = 0,
+    seed: int = 0,
+) -> None:
+    """Fine-tune on Urdu clips (picked on the dev split), export fp32 and int8 ONNX, score on the test clips."""
+    from huggingface_hub import hf_hub_download
+
+    from baari import train as tr
+
+    s = Settings()
+    start = (
+        Path(init)
+        if Path(init).exists()
+        else Path(hf_hub_download(*init.split(":", 1), cache_dir=s.hf_cache))
+    )
+    log = tr.run(
+        clips or s.clips_dir / "train.parquet",
+        test or s.clips_dir / "valid.parquet",
+        start,
+        out,
+        extra or [],
+        epochs=epochs,
+        lr=lr,
+        batch=batch,
+        seed=seed,
+        workers=workers,
+        cache=s.hf_cache,
+        max_steps=max_steps,
+    )
+    typer.echo(
+        json.dumps({k: log[k] for k in ("sizes", "start", "onnx_fp32_test", "onnx_int8_test")}, indent=1)
+    )
