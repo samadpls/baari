@@ -5,12 +5,17 @@ from collections import defaultdict
 from pathlib import Path
 from typing import Annotated
 
-import pyarrow as pa
-import pyarrow.parquet as pq
-import typer
+try:
+    import pyarrow as pa
+    import pyarrow.parquet as pq
+    import typer
 
-from baari import clips, indicvoices, labels
-from baari.settings import Settings
+    from baari import clips, indicvoices, labels
+    from baari.settings import Settings
+except ImportError as e:
+    raise SystemExit(
+        f'The baari command needs the pipeline extras: pip install "baari[pipeline]" ({e})'
+    ) from e
 
 app = typer.Typer(no_args_is_help=True)
 

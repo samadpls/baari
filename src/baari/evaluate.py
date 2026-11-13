@@ -16,6 +16,7 @@ from huggingface_hub import hf_hub_download
 from sklearn.metrics import roc_auc_score
 from transformers import WhisperFeatureExtractor
 
+from baari.features import compute_whisper_log_mel_features
 from baari.indicvoices import SR
 
 ONNX_MODELS = {
@@ -34,22 +35,16 @@ def last(x: np.ndarray, seconds: int) -> np.ndarray:
 
 
 class OnnxModel:
-    fe = WhisperFeatureExtractor(chunk_length=8)
+    """Runs a Smart Turn style ONNX file the way Pipecat does: its numpy log-mel features, not
+    transformers'. int8 models can change their answer on about 1 clip in 100 between the two, which
+    differ by about 1e-5, so scores must use the features people will run."""
 
     def __init__(self, path: str):
         self.sess = ort.InferenceSession(path, providers=["CPUExecutionProvider"])
         self.input = self.sess.get_inputs()[0].name
 
     def __call__(self, wavs: list[np.ndarray]) -> np.ndarray:
-        feats = self.fe(
-            [last(w, 8) for w in wavs],
-            sampling_rate=SR,
-            return_tensors="np",
-            padding="max_length",
-            max_length=8 * SR,
-            truncation=True,
-            do_normalize=True,
-        ).input_features.astype(np.float32)
+        feats = np.stack([compute_whisper_log_mel_features(last(w, 8).astype(np.float32)) for w in wavs])
         p = np.asarray(self.sess.run(None, {self.input: feats})[0], dtype=np.float64).reshape(len(wavs), -1)[
             :, -1
         ]

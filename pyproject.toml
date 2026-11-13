@@ -5,8 +5,23 @@ description = "End-of-turn detection for Urdu voice agents"
 readme = "README.md"
 license = "BSD-2-Clause"
 authors = [{ name = "Abdul Samad", email = "abdulsamadsid1@gmail.com" }]
-requires-python = ">=3.12"
+requires-python = ">=3.10"
 dependencies = ["numpy", "onnxruntime"]
+keywords = ["urdu", "turn-detection", "end-of-turn", "voice-agents", "speech", "pipecat", "onnx"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Natural Language :: Urdu",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Topic :: Multimedia :: Sound/Audio :: Speech",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+
+[project.urls]
+Homepage = "https://github.com/samadpls/baari"
+Issues = "https://github.com/samadpls/baari/issues"
+Author = "https://samadpls.com"
 
 [project.optional-dependencies]
 pipeline = [
@@ -31,6 +46,10 @@ dev = ["pytest", "ruff"]
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.sdist]
+# An allow-list, so local-only files (the plan, data, .env) can never end up in a release.
+include = ["src/baari", "tests", "LICENSE*", "README.md", "pyproject.toml"]
 
 [tool.uv]
 cache-dir = ".uv-cache"

@@ -35,15 +35,16 @@ average of the two middle columns (balanced accuracy).
 | Model | Balanced accuracy (95% CI) | Waits when unfinished | Replies when finished |
 |---|---|---|---|
 | Always says "finished" (reference) | 50.0% | 0.0% | 100.0% |
-| Smart Turn v3.2 (CPU, int8) | 63.8% (59.3–68.5) | 58.5% | 69.2% |
+| Smart Turn v3.2 (CPU, int8) | 63.4% (58.8–68.1) | 57.6% | 69.2% |
 | Smart Turn v3.2 (GPU, fp32) | 58.8% (54.8–63.0) | 76.3% | 41.3% |
-| Indic Smart Turn tiny (int8) | 74.0% (69.5–78.3) | 61.9% | 86.1% |
+| Indic Smart Turn tiny (int8) | 73.4% (69.0–77.8) | 61.0% | 85.9% |
 | Indic Smart Turn tiny (fp32) | 70.0% (65.8–74.4) | 51.7% | 88.4% |
 | Indic Smart Turn base (fp32) | 70.9% (66.5–75.4) | 47.5% | 94.4% |
 | PuristanLabs1/urdu-turn-v2 (Urdu) | 51.8% (48.4–55.4) | 16.9% | 86.7% |
 
-Scored on a MacBook Pro (M3 Pro). int8 results shift by a few points between Arm and x86 CPUs; fp32
-results do not.
+Scored on a MacBook Pro (M3 Pro), with the same audio preparation Pipecat uses. int8 models are
+sensitive: their scores shift by a few points between Arm and x86 CPUs, and even tiny changes in how
+the audio is prepared flip about 1 answer in 100. fp32 results stay the same.
 
 <details>
 <summary>How the test set was made</summary>
