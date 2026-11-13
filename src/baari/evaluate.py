@@ -16,7 +16,7 @@ from huggingface_hub import hf_hub_download
 from sklearn.metrics import roc_auc_score
 from transformers import WhisperFeatureExtractor
 
-from urdu_turn.indicvoices import SR
+from baari.indicvoices import SR
 
 ONNX_MODELS = {
     "Smart Turn v3.2 (CPU, int8)": ("pipecat-ai/smart-turn-v3", "smart-turn-v3.2-cpu.onnx"),

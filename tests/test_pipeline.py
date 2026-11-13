@@ -3,8 +3,8 @@ import random
 import numpy as np
 import pytest
 
-from urdu_turn import clips, labels
-from urdu_turn.indicvoices import SR, without_test
+from baari import clips, labels
+from baari.indicvoices import SR, without_test
 
 
 def tone(seconds: float) -> np.ndarray:

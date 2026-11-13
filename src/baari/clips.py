@@ -16,8 +16,8 @@ import pyarrow as pa
 import pyarrow.parquet as pq
 import soundfile as sf
 
-from urdu_turn.indicvoices import SR
-from urdu_turn.labels import Key, SegmentLabel
+from baari.indicvoices import SR
+from baari.labels import Key, SegmentLabel
 
 WINDOW = 8 * SR
 TRAIL = int(0.2 * SR)

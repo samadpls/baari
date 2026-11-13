@@ -1,4 +1,4 @@
-# urdu-turn
+# baari
 
 End-of-turn detection for Urdu voice agents: at every pause, decide whether the speaker has finished
 (reply now) or is only pausing mid-sentence (keep listening).
@@ -51,11 +51,11 @@ results do not.
 ```bash
 uv sync --extra pipeline
 echo "HF_TOKEN=..." > .env          # accept the IndicVoices terms on Hugging Face first
-uv run urdu-turn scan --split valid  # index the conversation segments (text only)
-uv run urdu-turn batches             # label batches for the LLM agents
+uv run baari scan --split valid     # index the conversation segments (text only)
+uv run baari batches                # label batches for the LLM agents
 # the agents write data/labels/valid/results/{a,b}/batch-*.jsonl
-uv run urdu-turn build               # cut the 8 s clips
-uv run urdu-turn evaluate            # score the existing models
+uv run baari build                  # cut the 8 s clips
+uv run baari evaluate               # score the existing models
 ```
 
 ## Credits
@@ -64,5 +64,7 @@ uv run urdu-turn evaluate            # score the existing models
 - [Indic Smart Turn](https://github.com/adimyth/indic-smart-turn): the clip recipe and labelling prompt
   are adapted from it (BSD-2-Clause, see [LICENSE.indic-smart-turn](LICENSE.indic-smart-turn)).
 - [Smart Turn](https://github.com/pipecat-ai/smart-turn) by Pipecat.
+
+The code is BSD-2-Clause ([LICENSE](LICENSE)).
 
 Made by [Abdul Samad](https://samadpls.com) (abdulsamadsid1@gmail.com).

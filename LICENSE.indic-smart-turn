@@ -1,4 +1,4 @@
-Parts of src/urdu_turn/clips.py and prompts/label.md are adapted from Indic Smart Turn
+Parts of src/baari/clips.py and prompts/label.md are adapted from Indic Smart Turn
 (https://github.com/adimyth/indic-smart-turn), under this license:
 
 BSD 2-Clause License

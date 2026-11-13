@@ -1,5 +1,5 @@
 [project]
-name = "urdu-turn"
+name = "baari"
 version = "0.0.1"
 description = "End-of-turn detection for Urdu voice agents"
 readme = "README.md"
@@ -22,7 +22,7 @@ pipeline = [
 ]
 
 [project.scripts]
-urdu-turn = "urdu_turn.cli:app"
+baari = "baari.cli:app"
 
 [dependency-groups]
 dev = ["pytest", "ruff"]

@@ -7,8 +7,8 @@ import pyarrow as pa
 import pyarrow.parquet as pq
 import typer
 
-from urdu_turn import clips, indicvoices, labels
-from urdu_turn.settings import Settings
+from baari import clips, indicvoices, labels
+from baari.settings import Settings
 
 app = typer.Typer(no_args_is_help=True)
 
@@ -137,7 +137,7 @@ def spotcheck(
             }
         )
     page = (
-        files("urdu_turn")
+        files("baari")
         .joinpath("spotcheck.html")
         .read_text()
         .replace("__CLIPS__", json.dumps(clips_meta, ensure_ascii=False))
@@ -150,7 +150,7 @@ def spotcheck(
 @app.command()
 def evaluate(split: str = "valid", subset: str = "test") -> None:
     """Score the existing turn detectors on the clips."""
-    from urdu_turn import evaluate as ev
+    from baari import evaluate as ev
 
     s = Settings()
     report = ev.run(s.clips_dir / f"{split}.parquet", subset, s.hf_cache)
