@@ -13,7 +13,6 @@ import random
 
 import numpy as np
 import pyarrow as pa
-import pyarrow.parquet as pq
 import soundfile as sf
 
 from baari.indicvoices import SR
@@ -82,13 +81,11 @@ def wav_bytes(x: np.ndarray) -> bytes:
     return buf.getvalue()
 
 
-def save(rows: list[dict], path) -> None:
-    """rows carry 'audio' as float32 arrays; written as 16-bit WAV bytes."""
-    table = pa.Table.from_pylist(
+def table(rows: list[dict]) -> pa.Table:
+    """rows carry 'audio' as float32 arrays; stored as 16-bit WAV bytes, as Hugging Face Audio expects."""
+    return pa.Table.from_pylist(
         [
             {**r, "audio": {"bytes": wav_bytes(r["audio"]), "path": f"{r['session']}_{r['chunk']}.wav"}}
             for r in rows
         ]
     )
-    path.parent.mkdir(parents=True, exist_ok=True)
-    pq.write_table(table, path, row_group_size=500)

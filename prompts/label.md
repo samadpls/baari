@@ -40,4 +40,5 @@ the batch exactly once, in order, and nothing else:
 {"session": "<session id>", "chunk": <chunk number>, "complete": true, "confidence": 0.8}
 ```
 
-`confidence` is between 0 and 1 with one decimal: how sure you are of `complete`.
+`confidence` has one decimal: how sure you are that your `complete` value is right, from 0.5 (a
+guess) to 1.0 (certain). It is never below 0.5, also when `complete` is false.
