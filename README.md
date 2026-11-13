@@ -1,5 +1,5 @@
 <p align="center">
-  <img alt="baari" src="assets/hero.png" width="100%">
+  <img alt="baari: knows when an Urdu speaker has finished talking" src="assets/hero.svg" width="100%">
 </p>
 
 <p align="center">
