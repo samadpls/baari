@@ -3,6 +3,7 @@ import random
 import zlib
 from collections import defaultdict
 from pathlib import Path
+from typing import Annotated
 
 import pyarrow as pa
 import pyarrow.parquet as pq
@@ -186,3 +187,51 @@ def evaluate(split: str = "valid", subset: str = "test") -> None:
     s.reports_dir.mkdir(parents=True, exist_ok=True)
     (s.reports_dir / f"{split}-{subset}.md").write_text(report)
     typer.echo(report)
+
+
+@app.command()
+def train(
+    clips: Path | None = None,
+    test: Path | None = None,
+    extra: Annotated[
+        list[Path] | None, typer.Option(help="More clip files; their 'train' rows are mixed in.")
+    ] = None,
+    init: Annotated[str, typer.Option(help="fp32 ONNX to start from: a path or repo:file")] = (
+        "adimyth/indic-smart-turn:indic-smart-turn-tiny-fp32.onnx"
+    ),
+    out: Path = Path("data/models/run"),
+    epochs: float = 3,
+    lr: float = 2e-5,
+    batch: int = 64,
+    workers: int = 4,
+    max_steps: int = 0,
+    seed: int = 0,
+) -> None:
+    """Fine-tune on Urdu clips (picked on the dev split), export fp32 and int8 ONNX, score on the test clips."""
+    from huggingface_hub import hf_hub_download
+
+    from baari import train as tr
+
+    s = Settings()
+    start = (
+        Path(init)
+        if Path(init).exists()
+        else Path(hf_hub_download(*init.split(":", 1), cache_dir=s.hf_cache))
+    )
+    log = tr.run(
+        clips or s.clips_dir / "train.parquet",
+        test or s.clips_dir / "valid.parquet",
+        start,
+        out,
+        extra or [],
+        epochs=epochs,
+        lr=lr,
+        batch=batch,
+        seed=seed,
+        workers=workers,
+        cache=s.hf_cache,
+        max_steps=max_steps,
+    )
+    typer.echo(
+        json.dumps({k: log[k] for k in ("sizes", "start", "onnx_fp32_test", "onnx_int8_test")}, indent=1)
+    )

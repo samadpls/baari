@@ -52,3 +52,23 @@ def test_without_test_drops_test_speakers_and_both_sides_of_test_calls():
         {"session": "call3_0", "speaker_id": "C"},
     ]
     assert without_test(rows, test) == [rows[2]]
+
+
+def test_recover_reads_every_weight_back_from_an_onnx_export(tmp_path):
+    torch = pytest.importorskip("torch")
+    from transformers import WhisperConfig
+
+    from baari import train
+
+    config = WhisperConfig(
+        d_model=16, encoder_layers=2, encoder_attention_heads=2, encoder_ffn_dim=32, num_mel_bins=80
+    )
+    torch.manual_seed(0)
+    a = train.SmartTurn(config).eval()
+    for value in a.state_dict().values():  # fresh init repeats values, and the exporter merges repeats
+        value.copy_(torch.randn_like(value))
+    train.to_onnx(a, tmp_path / "m.onnx")
+    b = train.SmartTurn(config)
+    train.recover(tmp_path / "m.onnx", b)
+    for name, value in a.state_dict().items():
+        assert torch.equal(value, b.state_dict()[name]), name

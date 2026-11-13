@@ -19,6 +19,7 @@ pipeline = [
     "pydantic-settings>=2",
     "typer",
     "torch",
+    "onnx",
 ]
 
 [project.scripts]
