@@ -7,7 +7,7 @@
   <a href="https://github.com/samadpls/baari/blob/main/LICENSE"><img alt="Code license: BSD-2-Clause" src="https://img.shields.io/badge/code-BSD--2--Clause-0E6B4F"></a>
   <a href="https://huggingface.co/datasets/ai4bharat/IndicVoices"><img alt="Data: IndicVoices, CC BY 4.0" src="https://img.shields.io/badge/data-IndicVoices%20(CC%20BY%204.0)-F2B544?logo=huggingface&logoColor=000"></a>
   <a href="https://pypi.org/project/baari/"><img alt="PyPI" src="https://img.shields.io/pypi/v/baari?color=0E6B4F&label=pypi"></a>
-  <a href="https://pepy.tech/projects/baari"><img alt="Downloads" src="https://static.pepy.tech/badge/baari"></a>
+  <a href="https://pepy.tech/projects/baari"><img alt="Downloads" src="https://img.shields.io/pepy/dt/baari?label=downloads&color=0E6B4F"></a>
   <img alt="Python 3.10+" src="https://img.shields.io/badge/python-3.10%2B-3776AB?logo=python&logoColor=fff">
 </p>
 
